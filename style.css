@@ -14,10 +14,7 @@ body {
     /* または visibility: hidden; /* 要素は見えなくなるが、スペースは残る */ */
 }
 
-/* style.css に追加 */
-#sign-in-container {
-    display: none; /* コンテナ全体を非表示にする */
-}
+
 #topics-container {
     position: relative;
     width: 100%;
