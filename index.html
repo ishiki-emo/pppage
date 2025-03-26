@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Floating Topics Display</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+
+    <style>
+        /* 簡単なローディング/ステータス表示用（必要に応じて style.css に移動） */
+        #status {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            color: rgba(255, 255, 255, 0.6); /* 半透明の白 */
+            font-size: 0.8em;
+            z-index: 100; /* 他の要素より手前に表示 */
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 5px;
+            border-radius: 3px;
+        }
+        /* サインインボタンのコンテナ（必要に応じて） */
+        #sign-in-container {
+             position: fixed;
+             top: 10px;
+             right: 10px;
+             z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="topics-container">
+        </div>
+
+    <div id="status">Initializing...</div>
+
+    <div id="sign-in-container">
+        </div>
+
+    <script src="script.js" defer></script>
+
+</body>
+</html>
