@@ -1,27 +1,9 @@
 {
-  "short_name": "PPWeb",
-  "name": "PortableTopics",
-  "icons": [
-    {
-      "src": "/images/icons-vector.svg",
-      "type": "image/svg+xml",
-      "sizes": "512x512"
-    },
-    {
-      "src": "/images/icons-192.png",
-      "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "/images/icons-512.png",
-      "type": "image/png",
-      "sizes": "512x512"
-    }
-  ],
-  "id": "/pppage/?source=pwa",
-  "start_url": "/pppage/?source=pwa",
-  "background_color": "#3367D6",
+  "name": "PPweb",
+  "short_name": "PPweb",
+  "theme_color": "#2196f3",
+  "background_color": "#2196f3",
   "display": "fullscreen",
-  "orientation": "landscape",
-  "scope": "/"
+  "scope": "/",
+  "start_url": "/pppage"
 }
