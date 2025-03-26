@@ -8,28 +8,6 @@ const MANIFEST_FILE_ID = '1djWkY2cKlIWf6if1qyP5RVMTRED67zP1'; // Google Drive上
 const SCOPES = 'https://www.googleapis.com/auth/drive.readonly'; // Driveファイルの読み取り権限のみ要求
 const CHECK_INTERVAL_MS = 60 * 1000; // 60秒ごとに更新をチェック
 
-はい、承知いたしました。
-これまでのデバッグと修正を反映した script.js の完全なソースコードを以下に示します。
-
-主な修正点:
-
-defer 属性のみを使用することを前提とし、gapi.load のコールバックを使ってGAPIクライアントの準備完了を待つように変更。
-GISクライアントの準備も google.accounts オブジェクトの存在を確認してから行うように変更。
-isGapiClientReady, isGisClientReady フラグで両方の準備完了を管理し、両方完了してからサインインUIを表示するように変更。
-デバッグ用の console.log を各所に追加。
-インターバル処理 (setInterval) の開始と、インターバルによる関数呼び出し開始のログを追加。
-Drive API呼び出し時のエラーハンドリングを強化し、401/403エラー（トークン切れの可能性）を検知してサインアウト（インターバル停止）するように変更。
-JavaScript
-
-// --- Configuration ---
-// ★★★ Replace with your actual values ★★★
-const API_KEY = 'YOUR_API_KEY'; // Google Cloud Consoleで取得したAPIキー
-const CLIENT_ID = 'YOUR_CLIENT_ID'; // Google Cloud Consoleで取得したWebアプリケーション用クライアントID
-const MANIFEST_FILE_ID = 'YOUR_MANIFEST_FILE_ID'; // Google Drive上のmanifest.jsonのファイルID
-// ★★★ End of replacements ★★★
-
-const SCOPES = 'https://www.googleapis.com/auth/drive.readonly'; // Driveファイルの読み取り権限のみ要求
-const CHECK_INTERVAL_MS = 60 * 1000; // 60秒ごとに更新をチェック (ミリ秒)
 
 // --- Global Variables ---
 let tokenClient;
