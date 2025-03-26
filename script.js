@@ -28,7 +28,9 @@ const signInContainer = document.getElementById('sign-in-container');
  * Initializes the API client.
  */
 function gapiLoaded() {
+    console.log('debug1');
     gapi.load('client', initializeGapiClient);
+    console.log('debug2');
 }
 
 /**
@@ -58,6 +60,7 @@ async function initializeGapiClient() {
  * Initializes the token client for OAuth 2.0.
  */
 function gisLoaded() {
+    console.log('debug3');
     try {
         tokenClient = google.accounts.oauth2.initTokenClient({
             client_id: CLIENT_ID,
@@ -75,6 +78,7 @@ function gisLoaded() {
         console.error("Error initializing GIS client:", err);
         updateStatus(`Error initializing Google Sign-In: ${err.message}`, true);
     }
+    console.log('debug4');
 }
 
 /**
