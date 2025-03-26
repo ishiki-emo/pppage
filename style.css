@@ -8,7 +8,16 @@ body {
     margin: 0;
     height: 100vh;
 }
+/* style.css に追加 */
+#status {
+    display: none; /* 要素を完全に非表示にし、レイアウト上のスペースも詰める */
+    /* または visibility: hidden; /* 要素は見えなくなるが、スペースは残る */ */
+}
 
+/* style.css に追加 */
+#sign-in-container {
+    display: none; /* コンテナ全体を非表示にする */
+}
 #topics-container {
     position: relative;
     width: 100%;
