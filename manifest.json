@@ -1,9 +1,10 @@
 {
-  "name": "PPweb",
-  "short_name": "PPweb",
-  "theme_color": "#2196f3",
-  "background_color": "#2196f3",
-  "display": "fullscreen",
-  "scope": "/",
-  "start_url": "/pppage"
+  "name": "webPT",
+  "icons": [
+    {
+      "src": "icon512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
 }
