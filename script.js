@@ -126,10 +126,11 @@ function tokenCallback(tokenResponse) {
 
         // サインインボタンを削除し、サインアウトボタンを表示
         signInContainer.innerHTML = '';
-        const button = document.createElement('button');
-        button.textContent = 'Sign Out';
-        button.onclick = handleSignoutClick;
-        signInContainer.appendChild(button);
+        
+        //const button = document.createElement('button');
+        //button.textContent = 'Sign Out';
+        //button.onclick = handleSignoutClick;
+        //signInContainer.appendChild(button);
 
         // 最初のデータ取得を実行
         fetchManifestAndTopics();
