@@ -8,11 +8,34 @@ const MANIFEST_FILE_ID = '1djWkY2cKlIWf6if1qyP5RVMTRED67zP1'; // Google Drive上
 const SCOPES = 'https://www.googleapis.com/auth/drive.readonly'; // Driveファイルの読み取り権限のみ要求
 const CHECK_INTERVAL_MS = 60 * 1000; // 60秒ごとに更新をチェック
 
+はい、承知いたしました。
+これまでのデバッグと修正を反映した script.js の完全なソースコードを以下に示します。
+
+主な修正点:
+
+defer 属性のみを使用することを前提とし、gapi.load のコールバックを使ってGAPIクライアントの準備完了を待つように変更。
+GISクライアントの準備も google.accounts オブジェクトの存在を確認してから行うように変更。
+isGapiClientReady, isGisClientReady フラグで両方の準備完了を管理し、両方完了してからサインインUIを表示するように変更。
+デバッグ用の console.log を各所に追加。
+インターバル処理 (setInterval) の開始と、インターバルによる関数呼び出し開始のログを追加。
+Drive API呼び出し時のエラーハンドリングを強化し、401/403エラー（トークン切れの可能性）を検知してサインアウト（インターバル停止）するように変更。
+JavaScript
+
+// --- Configuration ---
+// ★★★ Replace with your actual values ★★★
+const API_KEY = 'YOUR_API_KEY'; // Google Cloud Consoleで取得したAPIキー
+const CLIENT_ID = 'YOUR_CLIENT_ID'; // Google Cloud Consoleで取得したWebアプリケーション用クライアントID
+const MANIFEST_FILE_ID = 'YOUR_MANIFEST_FILE_ID'; // Google Drive上のmanifest.jsonのファイルID
+// ★★★ End of replacements ★★★
+
+const SCOPES = 'https://www.googleapis.com/auth/drive.readonly'; // Driveファイルの読み取り権限のみ要求
+const CHECK_INTERVAL_MS = 60 * 1000; // 60秒ごとに更新をチェック (ミリ秒)
+
 // --- Global Variables ---
 let tokenClient;
 let currentAccessToken = null;
 let updateIntervalId = null;
-let currentTopics = [];
+let currentTopics = []; // 現在表示中のトピックを保持
 // フラグで両ライブラリの準備完了を管理
 let isGapiClientReady = false;
 let isGisClientReady = false;
@@ -31,6 +54,7 @@ async function initializeGapiClient() {
     console.log("script.js: initializeGapiClient() called");
     try {
         console.log("script.js: Initializing GAPI client with API key...");
+        // GAPIクライアントを初期化
         await gapi.client.init({
             apiKey: API_KEY,
             discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
@@ -38,6 +62,7 @@ async function initializeGapiClient() {
         console.log("script.js: GAPI client initialized successfully.");
 
         console.log("script.js: Loading Drive API...");
+        // Drive API v3 をロード
         await gapi.client.load('drive', 'v3');
         console.log("script.js: Drive API loaded successfully.");
 
@@ -57,11 +82,12 @@ function initializeGisClient() {
     console.log("script.js: initializeGisClient() called");
     try {
         console.log("script.js: Initializing GIS token client...");
+        // GISトークンクライアントを初期化
         tokenClient = google.accounts.oauth2.initTokenClient({
             client_id: CLIENT_ID,
             scope: SCOPES,
             callback: tokenCallback, // トークン取得時のコールバック
-            error_callback: (error) => {
+            error_callback: (error) => { // エラー発生時のコールバック
                 console.error("script.js: GIS Error Callback:", error);
                 updateStatus(`Sign-in error: ${error.message || 'Unknown GIS error'}`, true);
             }
@@ -77,98 +103,363 @@ function initializeGisClient() {
 }
 
 /**
- * GAPIとGISの両方の準備ができたらアプリのメイン処理を開始する
+ * GAPIとGISの両方の準備ができたらアプリのメイン処理（サインインボタン表示）を開始する
  */
 function checkLibrariesAndStart() {
     console.log(`script.js: checkLibrariesAndStart() called. GAPI Ready=${isGapiClientReady}, GIS Ready=${isGisClientReady}`);
+    // 両方のフラグが true になったら実行
     if (isGapiClientReady && isGisClientReady) {
         console.log("script.js: Both libraries ready. Enabling sign-in.");
         updateStatus('Ready. Please sign in.');
         // --- サインインボタン表示 ---
-        signInContainer.innerHTML = '';
+        signInContainer.innerHTML = ''; // 以前の内容をクリア
         const button = document.createElement('button');
         button.textContent = 'Sign in with Google';
-        button.onclick = handleAuthClick;
-        signInContainer.appendChild(button);
+        button.onclick = handleAuthClick; // クリック時のハンドラを設定
+        signInContainer.appendChild(button); // ボタンをDOMに追加
         // --- ここでアプリの他の初期化処理が必要なら追加 ---
     }
 }
 
-// --- Authentication Callbacks and Handlers (変更なし) ---
+// --- Authentication Callbacks and Handlers ---
 
+/**
+ * GISトークンクライアントのコールバック。アクセストークン取得時またはエラー時に呼ばれる。
+ * @param {object} tokenResponse Contains the access token or an error.
+ */
 function tokenCallback(tokenResponse) {
-    // ... (前回のコードと同じ) ...
+    console.log("script.js: tokenCallback() called.");
     if (tokenResponse && tokenResponse.access_token) {
-        currentAccessToken = tokenResponse.access_token;
-        // ★ gapi.client が利用可能か一応確認
+        console.log("script.js: Access token received.");
+        currentAccessToken = tokenResponse.access_token; // トークンをグローバル変数に保存
+
+        // GAPIクライアントにトークンを設定
         if (gapi && gapi.client) {
              gapi.client.setToken({ access_token: currentAccessToken });
+             console.log("script.js: GAPI token set.");
         } else {
-             console.error("gapi.client not ready when setting token!");
+             // 通常ここには来ないはずだが念のため
+             console.error("script.js: gapi.client not ready when setting token!");
              updateStatus('Error: Google API Client not ready.', true);
              return;
         }
+
         updateStatus('Sign-in successful. Fetching topics...');
-        signInContainer.innerHTML = ''; // Clear sign-in button
+
+        // サインインボタンを削除し、サインアウトボタンを表示
+        signInContainer.innerHTML = '';
         const button = document.createElement('button');
         button.textContent = 'Sign Out';
         button.onclick = handleSignoutClick;
         signInContainer.appendChild(button);
 
-        // Fetch initial data and start timer
+        // 最初のデータ取得を実行
         fetchManifestAndTopics();
-        if (updateIntervalId) clearInterval(updateIntervalId); // Clear existing timer if any
+
+        // 定期更新のためのインターバルタイマーを開始
+        console.log("script.js: Setting up interval timer...");
+        if (updateIntervalId) {
+            clearInterval(updateIntervalId); // 既存のタイマーがあればクリア
+            console.log("script.js: Cleared previous interval timer.");
+        }
         updateIntervalId = setInterval(fetchManifestAndTopics, CHECK_INTERVAL_MS);
+        console.log("script.js: Interval timer started with ID:", updateIntervalId);
 
     } else {
-        // ... (エラー処理、前回のコードと同じ) ...
+        // アクセストークンが取得できなかった場合のエラー処理
         const errorMsg = tokenResponse?.error ? `${tokenResponse.error}: ${tokenResponse.error_description || tokenResponse.error_uri || 'No details'}` : 'Access token not received.';
-        console.error("Token Callback Error:", tokenResponse);
+        console.error("script.js: Token Callback Error:", tokenResponse);
         updateStatus(`Authentication failed: ${errorMsg}`, true);
         checkLibrariesAndStart(); // Show sign-in button again if needed
     }
 }
 
+/**
+ * サインインボタンクリック時の処理。GISの認証フローを開始する。
+ */
 function handleAuthClick() {
+    console.log("script.js: handleAuthClick() called.");
     if (!tokenClient) {
-         console.error("Token client not initialized.");
+         console.error("script.js: Token client not initialized.");
          updateStatus("Sign-in is not ready yet.", true);
          return;
     }
     updateStatus('Requesting Google Sign-In...');
-    signInContainer.innerHTML = '<span>Requesting Sign-In...</span>';
-    // ...(前回のコードと同じ)...
-    tokenClient.requestAccessToken({ prompt: 'consent' });
+    signInContainer.innerHTML = '<span>Requesting Sign-In...</span>'; // ユーザーへのフィードバック
+
+    // 既存のトークン情報をクリア
+    currentAccessToken = null;
+     if (gapi && gapi.client) { gapi.client.setToken(null); }
+
+    console.log("script.js: handleAuthClick: BEFORE requestAccessToken call");
+    try {
+        // GISのトークン取得フローを開始 (通常ポップアップが開く)
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+    } catch (err) {
+         // requestAccessToken自体が同期エラーを投げることは稀だが念のため
+         console.error("script.js: Error calling requestAccessToken:", err);
+         updateStatus(`Sign-in initiation error: ${err.message}`, true);
+         checkLibrariesAndStart(); // Show sign-in button again
+    }
+    console.log("script.js: handleAuthClick: AFTER requestAccessToken call (Popup initiation requested)");
 }
 
+/**
+ * サインアウトボタンクリック時の処理。
+ */
 function handleSignoutClick() {
-    // ...(前回のコードと同じ)...
-     if (updateIntervalId) clearInterval(updateIntervalId);
-    updateIntervalId = null;
-    // ...(トークンrevokeなど)...
-     currentAccessToken = null;
+    console.log("script.js: handleSignoutClick() called.");
+    // インターバルタイマーを停止
+    if (updateIntervalId) {
+        clearInterval(updateIntervalId);
+        updateIntervalId = null;
+        console.log("script.js: Interval timer cleared.");
+    }
+
+    const token = currentAccessToken;
+    currentAccessToken = null; // グローバルトークンをクリア
+
+    // GAPIクライアントのトークンもクリア
      if (gapi && gapi.client) {
          gapi.client.setToken(null);
      }
-    // ...(状態クリアなど)...
+
+    // Google側でトークンを無効化 (任意だが推奨)
+    if (token) {
+        google.accounts.oauth2.revoke(token, () => {
+            console.log('script.js: Access token revoked.');
+        });
+    }
+
+    // 自動サインイン選択状態を無効化 (次回アクセス時に自動選択されなくなる)
+    google.accounts.id.disableAutoSelect();
+
+    // 表示内容と状態をクリア
     currentTopics = [];
     topicsContainer.innerHTML = '';
-    signInContainer.innerHTML = '';
+    signInContainer.innerHTML = ''; // サインアウトボタンをクリア
     updateStatus('Signed out.');
-    checkLibrariesAndStart(); // Show sign-in button again
+    checkLibrariesAndStart(); // 再度サインインボタンを表示
 }
 
-// --- Data Fetching & Display Functions (変更なし) ---
-async function fetchManifestAndTopics() { /* ... 前回のコードと同じ ... */ }
-async function fetchDriveFileContent(fileId) { /* ... 前回のコードと同じ ... */ }
-function displayTopics(topicsArray) { /* ... 前回のコードと同じ ... */ }
 
-// --- Helper Functions (変更なし) ---
-function updateStatus(message, isError = false) { /* ... 前回のコードと同じ ... */ }
-function getRandomPosition(container, padding = 10) { /* ... 前回のコードと同じ ... */ }
-function getRandomDuration(min, max) { /* ... 前回のコードと同じ ... */ }
-function getRandomDelay(max) { /* ... 前回のコードと同じ ... */ }
+// --- Data Fetching & Display Functions ---
 
+/**
+ * ManifestファイルとTopicsファイルをGoogle Driveから取得し、表示を更新する。
+ * 初回読み込み時とインターバルタイマーによって定期的に呼び出される。
+ */
+async function fetchManifestAndTopics() {
+    // インターバル実行開始ログ
+    console.log(`script.js: fetchManifestAndTopics: Called at ${new Date().toISOString()}`);
+
+    // アクセストークンがなければ処理中断
+    if (!currentAccessToken) {
+        updateStatus('Not signed in. Cannot fetch data.', true);
+        console.warn("script.js: fetchManifestAndTopics aborted, user not signed in.");
+        // インターバルを止める（サインアウト処理が呼ばれていれば不要だが念のため）
+        if (updateIntervalId) {
+             clearInterval(updateIntervalId);
+             updateIntervalId = null;
+             console.log("script.js: Interval timer cleared because user is not signed in.");
+        }
+        return;
+    }
+    updateStatus('Checking for updated topics...');
+
+    let manifestContent;
+    try {
+        console.log("script.js: Fetching manifest file:", MANIFEST_FILE_ID);
+        manifestContent = await fetchDriveFileContent(MANIFEST_FILE_ID);
+        console.log("script.js: Manifest file fetched successfully.");
+    } catch (err) {
+        // fetchDriveFileContent内でエラーログとステータス更新済みのはず
+        // 必要であればここで追加のエラー処理
+        return; // エラー時は処理中断
+    }
+
+    let manifestData;
+    try {
+        manifestData = JSON.parse(manifestContent);
+    } catch (err) {
+        updateStatus(`Error parsing manifest.json: ${err.message}`, true);
+        console.error("script.js: Error parsing manifest:", err, "Content:", manifestContent);
+        return; // エラー時は処理中断
+    }
+
+    // Manifestから最新トピックファイルの情報を取得
+    const latestTopicsInfo = manifestData?.latest_topics_file;
+    const topicsFileId = latestTopicsInfo?.id;
+
+    if (!topicsFileId) {
+        updateStatus('Could not find topics file ID in manifest.', true);
+        console.error("script.js: Manifest structure issue or missing topics file ID:", manifestData);
+        return; // エラー時は処理中断
+    }
+
+    updateStatus(`Found latest topics file ID: ${topicsFileId}. Fetching content...`);
+    console.log(`script.js: Found latest topics file ID: ${topicsFileId}. Fetching content...`);
+
+    let topicsFileContent;
+    try {
+        console.log("script.js: Fetching topics file:", topicsFileId);
+        topicsFileContent = await fetchDriveFileContent(topicsFileId);
+        console.log("script.js: Topics file fetched successfully.");
+    } catch (err) {
+        // fetchDriveFileContent内でエラーログとステータス更新済みのはず
+        return; // エラー時は処理中断
+    }
+
+    let topicsData;
+    try {
+        topicsData = JSON.parse(topicsFileContent);
+        const newTopics = topicsData?.topics || [];
+
+        // 前回表示したトピックと比較（単純なJSON文字列比較）
+        if (JSON.stringify(newTopics) !== JSON.stringify(currentTopics)) {
+            console.log("script.js: Topics have changed, updating display.");
+            currentTopics = newTopics; // 新しいトピックリストを保存
+            updateStatus(`Topics updated (${currentTopics.length} items). Displaying...`);
+            displayTopics(currentTopics); // 表示を更新
+        } else {
+            console.log("script.js: Topics checked, no changes detected.");
+            updateStatus(`Topics checked, no changes detected (${currentTopics.length} items).`);
+        }
+
+    } catch (err) {
+        updateStatus(`Error parsing topics file: ${err.message}`, true);
+        console.error("script.js: Error parsing topics file:", err, "Content:", topicsFileContent);
+        // エラー時は処理中断
+    }
+}
+
+/**
+ * Google Driveから指定されたファイルIDのファイル内容を取得する。
+ * @param {string} fileId The ID of the file to fetch.
+ * @returns {Promise<string>} A promise that resolves with the file content as a string.
+ */
+async function fetchDriveFileContent(fileId) {
+    console.log(`script.js: Attempting to fetch file content for ID: ${fileId}`);
+    if (!fileId) {
+        console.error("script.js: fetchDriveFileContent called with no file ID.");
+        throw new Error("File ID is required.");
+    }
+    if (!gapi || !gapi.client || !gapi.client.drive) {
+         console.error("script.js: GAPI client or Drive API not ready for fetch.");
+         throw new Error("GAPI Drive client not ready.");
+    }
+
+    try {
+        // Drive API を呼び出してファイル内容を取得
+        const response = await gapi.client.drive.files.get({
+            fileId: fileId,
+            alt: 'media' // ファイル内容を取得するためのパラメータ
+        });
+        console.log(`script.js: Successfully fetched content for file ID: ${fileId}`);
+        // response.body にファイル内容が文字列として格納されている
+        return response.body;
+    } catch (err) {
+        // API呼び出しでエラーが発生した場合
+        console.error(`script.js: Drive API error fetching file ${fileId}:`, err);
+        // 認証エラー (401/403) かどうかチェック
+        if (err.status === 401 || err.status === 403) {
+             const errorMsg = `Authorization error (${err.status}) fetching file ${fileId}. Token might be expired. Please sign in again.`;
+             console.error(errorMsg);
+             updateStatus(errorMsg, true);
+             // トークン切れの可能性が高いので、サインアウト処理を呼んでインターバルを止める
+             handleSignoutClick();
+        } else {
+            // その他のAPIエラー
+            const errorMsg = `Failed to fetch file ${fileId}: ${err.result?.error?.message || err.message || 'Unknown Drive API error'}`;
+            console.error(errorMsg);
+            updateStatus(errorMsg, true);
+        }
+        // エラーを再スローして、呼び出し元 (fetchManifestAndTopics) にエラーを伝える
+        throw err;
+    }
+}
+
+/**
+ * 取得したトピックを画面に表示する（要素を生成しアニメーション設定）。
+ * @param {string[]} topicsArray An array of topic strings.
+ */
+function displayTopics(topicsArray) {
+    console.log(`script.js: displayTopics called with ${topicsArray.length} topics.`);
+    topicsContainer.innerHTML = ''; // 既存のトピック要素をクリア
+
+    if (!Array.isArray(topicsArray)) {
+        console.error("script.js: Invalid topics data provided to displayTopics:", topicsArray);
+        return;
+    }
+
+    topicsArray.forEach((topicText, index) => {
+        // console.log(`script.js: Creating element for topic ${index + 1}: ${topicText}`);
+        const topicElement = document.createElement('div');
+        topicElement.classList.add('topic-item');
+        topicElement.textContent = topicText;
+
+        // ランダムな位置とアニメーション時間を設定
+        const { top, left } = getRandomPosition(topicsContainer);
+        const duration = getRandomDuration(10, 25); // アニメーション時間 (秒)
+        const delay = getRandomDelay(5);          // アニメーション開始遅延 (秒)
+
+        topicElement.style.top = `${top}%`;
+        topicElement.style.left = `${left}%`;
+        topicElement.style.animationDuration = `${duration}s`;
+        topicElement.style.animationDelay = `${delay}s`;
+        topicElement.style.opacity = '0'; // 初期状態は透明にしておく（アニメーションで表示）
+        topicElement.style.animationName = 'float, fadeIn'; // 浮遊とフェードインアニメーションを適用 (CSSに fadeIn を追加する必要あり)
+        topicElement.style.animationTimingFunction = 'ease-in-out, ease-out';
+        topicElement.style.animationIterationCount = 'infinite, 1'; // floatは無限、fadeInは1回
+        topicElement.style.animationDirection = 'alternate, normal';
+        topicElement.style.animationFillMode = 'none, forwards'; // fadeInは終了状態を維持
+
+        topicsContainer.appendChild(topicElement);
+    });
+     console.log(`script.js: Finished creating ${topicsArray.length} topic elements.`);
+     updateStatus(`Displaying ${topicsArray.length} topics.`);
+}
+
+
+// --- Helper Functions ---
+
+/**
+ * 画面上のステータスメッセージを更新する。
+ * @param {string} message The message to display.
+ * @param {boolean} isError If true, display as an error.
+ */
+function updateStatus(message, isError = false) {
+    console.log(`Status Update: ${message} ${isError ? '(Error)' : ''}`);
+    if (statusDiv) {
+        statusDiv.textContent = message;
+        statusDiv.style.color = isError ? 'red' : 'rgba(255, 255, 255, 0.6)';
+        statusDiv.style.fontWeight = isError ? 'bold' : 'normal';
+    }
+}
+
+/**
+ * コンテナ内でランダムな位置（top, leftの%）を生成する。
+ * @param {HTMLElement} container - The container element.
+ * @param {number} padding - Percentage padding from edges.
+ * @returns {{top: number, left: number}} - Random position percentages.
+ */
+function getRandomPosition(container, padding = 10) {
+    // Ensure padding doesn't exceed 50%
+    const effectivePadding = Math.min(padding, 49);
+    const top = effectivePadding + Math.random() * (100 - 2 * effectivePadding);
+    const left = effectivePadding + Math.random() * (100 - 2 * effectivePadding);
+    return { top, left };
+}
+
+/** Generates random animation duration in seconds. */
+function getRandomDuration(min, max) {
+    return min + Math.random() * (max - min);
+}
+
+/** Generates random animation delay in seconds. */
+function getRandomDelay(max) {
+    return Math.random() * max;
+}
 
 // --- Script Execution Start ---
 
@@ -177,37 +468,45 @@ updateStatus('Loading Google libraries...');
 
 /**
  * Google API Client (gapi) の準備を開始する関数
+ * gapiオブジェクトの存在を確認してから gapi.load を呼び出す
  */
 function startGapiLoad() {
-    // gapiオブジェクトが存在するか確認してからgapi.loadを呼ぶ
-    if (typeof gapi !== 'undefined') {
+    if (typeof gapi !== 'undefined' && gapi.load) {
         console.log("script.js: gapi object found, calling gapi.load('client', ...)");
         // 'client'コンポーネントの読み込み完了後にinitializeGapiClientを実行
         gapi.load('client', initializeGapiClient);
     } else {
-        // gapiが見つからない場合は少し待ってリトライ
-        console.log("script.js: gapi object not found yet, retrying in 100ms...");
+        // gapi または gapi.load がまだ利用できない場合は少し待ってリトライ
+        console.log("script.js: gapi or gapi.load not found yet, retrying in 100ms...");
         setTimeout(startGapiLoad, 100);
     }
 }
 
 /**
  * Google Identity Services (GIS) の準備を開始する関数
+ * google.accounts オブジェクトの存在を確認してから初期化処理を呼び出す
  */
 function startGisLoad() {
-    // google.accounts オブジェクトが存在するか確認
-    if (typeof google !== 'undefined' && typeof google.accounts !== 'undefined') {
-        console.log("script.js: google.accounts object found, calling initializeGisClient()");
+    if (typeof google !== 'undefined' && typeof google.accounts !== 'undefined' && typeof google.accounts.oauth2 !== 'undefined') {
+        console.log("script.js: google.accounts.oauth2 object found, calling initializeGisClient()");
         initializeGisClient();
     } else {
-        // google.accounts が見つからない場合は少し待ってリトライ
-        console.log("script.js: google.accounts object not found yet, retrying in 100ms...");
+        // google.accounts.oauth2 がまだ利用できない場合は少し待ってリトライ
+        console.log("script.js: google.accounts.oauth2 object not found yet, retrying in 100ms...");
         setTimeout(startGisLoad, 100);
     }
 }
 
-// GAPIとGISのロードと初期化を開始
+// GAPIとGISのロードと初期化を開始するためのチェックを開始
 startGapiLoad();
 startGisLoad();
 
 console.log("script.js: Initial load checks scheduled.");
+
+// CSSにフェードインアニメーションを追加する例（style.cssに追加）
+/*
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+*/
