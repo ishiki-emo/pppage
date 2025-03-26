@@ -1,7 +1,7 @@
 // --- Configuration ---
 // ★★★ Replace with your actual values ★★★
 const API_KEY = 'AIzaSyBq2VjJnirR-vzN5w6Y0X3XHqxhhl2qeNw'; // Google Cloud Consoleで取得したAPIキー
-const CLIENT_ID = '1032885094154-crvf5r36l2h3b4jvgdbdt5vovp3ftjrs.apps.googleusercontent.com'; // Google Cloud Consoleで取得したWebアプリケーション用クライアントID
+const CLIENT_ID = '1032885094154-f7clcs1ssgdttl5j36bm183dfiq9gqi5.apps.googleusercontent.com'; // Google Cloud Consoleで取得したWebアプリケーション用クライアントID
 const MANIFEST_FILE_ID = '1djWkY2cKlIWf6if1qyP5RVMTRED67zP1'; // Google Drive上のmanifest.jsonのファイルID
 // ★★★ End of replacements ★★★
 
