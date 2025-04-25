@@ -10,7 +10,7 @@ const CHECK_INTERVAL_MS = 60 * 1000; // 60秒ごとに更新をチェック
 // ★★★ 画面サイズに応じた表示数調整のための設定 ★★★
 const AREA_PER_TOPIC = 15000; // 1トピックあたりのおおよその必要面積 (ピクセル単位、要調整)
 const MIN_TOPICS = 5;        // どんなに画面が小さくても最低表示する数 (任意)
-const MAX_TOPICS_LIMIT = 100; // どんなに画面が大きくても最大表示する数 (任意)
+const MAX_TOPICS_LIMIT = 10; // どんなに画面が大きくても最大表示する数 (任意)
 // ★★★ End of new configuration ★★★
 
 // --- Global Variables ---
