@@ -364,22 +364,17 @@ async function fetchDriveFileContent(fileId) {
 
 /**
  * 取得したトピックを画面に表示する（要素を生成しアニメーション設定）。
- * 画面サイズに応じて表示数を調整する。
+ * 画面サイズに応じて表示数を調整し、**JSON配列の末尾から**トピックを選択する。
  * @param {string[]} topicsArray An array of topic strings.
  */
 function displayTopics(topicsArray) {
     console.log(`script.js: displayTopics called with ${topicsArray.length} potential topics.`);
     topicsContainer.innerHTML = ''; // 既存のトピック要素をクリア
 
-    if (!Array.isArray(topicsArray)) {
-        console.error("script.js: Invalid topics data provided to displayTopics:", topicsArray);
-        updateStatus("Error: Invalid topics data received.", true); // ステータス更新追加
+    if (!Array.isArray(topicsArray) || topicsArray.length === 0) { // 配列でない、または空の場合のチェックを統合
+        console.error("script.js: Invalid or empty topics data provided:", topicsArray);
+        updateStatus("No valid topics found to display.");
         return;
-    }
-    if (topicsArray.length === 0) {
-        console.log("script.js: No topics to display.");
-        updateStatus("No topics found in the source file."); // ステータス更新追加
-        return; // トピックがなければ何もしない
     }
 
     // --- 画面サイズに基づいて表示数を計算 ---
@@ -387,23 +382,19 @@ function displayTopics(topicsArray) {
     const containerHeight = topicsContainer.offsetHeight;
     const screenArea = containerWidth * containerHeight;
 
-    // 面積から表示数を計算（最低数と最大数で制限）
     let calculatedMaxTopics = Math.floor(screenArea / AREA_PER_TOPIC);
-    calculatedMaxTopics = Math.max(MIN_TOPICS, calculatedMaxTopics); // 最低数を保証
-    calculatedMaxTopics = Math.min(MAX_TOPICS_LIMIT, calculatedMaxTopics); // 最大数で制限
-    calculatedMaxTopics = Math.min(calculatedMaxTopics, topicsArray.length); // 利用可能なトピック数を超えないように
+    calculatedMaxTopics = Math.max(MIN_TOPICS, calculatedMaxTopics);
+    calculatedMaxTopics = Math.min(MAX_TOPICS_LIMIT, calculatedMaxTopics);
+    calculatedMaxTopics = Math.min(calculatedMaxTopics, topicsArray.length);
 
     console.log(`script.js: Screen area ${screenArea}px^2. Calculated max topics: ${calculatedMaxTopics}`);
 
-    // --- 表示するトピックを選択 ---
-    // 元の配列をシャッフルしてからスライスすると、毎回違うトピックが表示されやすくなる（任意）
-    // const shuffledTopics = [...topicsArray].sort(() => 0.5 - Math.random());
-    // const topicsToDisplay = shuffledTopics.slice(0, calculatedMaxTopics);
-    // または、単純に先頭から取得
-    const topicsToDisplay = topicsArray.slice(0, calculatedMaxTopics);
+    // --- 表示するトピックを選択 (配列の末尾から取得) ---
+    // sliceに負の数を渡すと末尾からの要素数を指定できる
+    const topicsToDisplay = topicsArray.slice(-calculatedMaxTopics); // この行を変更
 
-    console.log(`script.js: Displaying ${topicsToDisplay.length} topics.`);
-    updateStatus(`Displaying ${topicsToDisplay.length} topics.`); // ステータス更新修正
+    console.log(`script.js: Displaying last ${topicsToDisplay.length} topics.`);
+    updateStatus(`Displaying ${topicsToDisplay.length} topics (newest).`); // ステータスメッセージも変更
 
     // --- トピック要素を生成して表示 ---
     topicsToDisplay.forEach((topicText, index) => {
@@ -411,6 +402,7 @@ function displayTopics(topicsArray) {
         topicElement.classList.add('topic-item');
         topicElement.textContent = topicText;
 
+        // 位置やアニメーションの設定は変更なし
         const { top, left } = getRandomPosition(topicsContainer);
         const duration = getRandomDuration(10, 25);
         const delay = getRandomDelay(5);
@@ -428,7 +420,6 @@ function displayTopics(topicsArray) {
 
         topicsContainer.appendChild(topicElement);
     });
-     // console.log(`script.js: Finished creating ${topicsToDisplay.length} topic elements.`); // ログは上で表示済み
 }
 
 // --- Helper Functions ---
