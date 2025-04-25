@@ -2,7 +2,7 @@
 // ★★★ Replace with your actual values ★★★
 const API_KEY = 'AIzaSyBq2VjJnirR-vzN5w6Y0X3XHqxhhl2qeNw'; // Google Cloud Consoleで取得したAPIキー
 const CLIENT_ID = '1032885094154-f7clcs1ssgdttl5j36bm183dfiq9gqi5.apps.googleusercontent.com'; // Google Cloud Consoleで取得したWebアプリケーション用クライアントID
-const MANIFEST_FILE_ID = '1djWkY2cKlIWf6if1qyP5RVMTRED67zP1'; // Google Drive上のmanifest.jsonのファイルID
+const MANIFEST_FILE_ID = '1kGhBKf1QbQR4mNf_OjCfAKvwJ7jL4fwM'; // Google Drive上のmanifest.jsonのファイルID
 // ★★★ End of replacements ★★★
 
 const SCOPES = 'https://www.googleapis.com/auth/drive.readonly'; // Driveファイルの読み取り権限のみ要求
