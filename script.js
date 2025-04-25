@@ -7,7 +7,11 @@ const MANIFEST_FILE_ID = '1djWkY2cKlIWf6if1qyP5RVMTRED67zP1'; // Google Drive上
 
 const SCOPES = 'https://www.googleapis.com/auth/drive.readonly'; // Driveファイルの読み取り権限のみ要求
 const CHECK_INTERVAL_MS = 60 * 1000; // 60秒ごとに更新をチェック
-
+// ★★★ 画面サイズに応じた表示数調整のための設定 ★★★
+const AREA_PER_TOPIC = 15000; // 1トピックあたりのおおよその必要面積 (ピクセル単位、要調整)
+const MIN_TOPICS = 5;        // どんなに画面が小さくても最低表示する数 (任意)
+const MAX_TOPICS_LIMIT = 100; // どんなに画面が大きくても最大表示する数 (任意)
+// ★★★ End of new configuration ★★★
 
 // --- Global Variables ---
 let tokenClient;
@@ -360,45 +364,72 @@ async function fetchDriveFileContent(fileId) {
 
 /**
  * 取得したトピックを画面に表示する（要素を生成しアニメーション設定）。
+ * 画面サイズに応じて表示数を調整する。
  * @param {string[]} topicsArray An array of topic strings.
  */
 function displayTopics(topicsArray) {
-    console.log(`script.js: displayTopics called with ${topicsArray.length} topics.`);
+    console.log(`script.js: displayTopics called with ${topicsArray.length} potential topics.`);
     topicsContainer.innerHTML = ''; // 既存のトピック要素をクリア
 
     if (!Array.isArray(topicsArray)) {
         console.error("script.js: Invalid topics data provided to displayTopics:", topicsArray);
+        updateStatus("Error: Invalid topics data received.", true); // ステータス更新追加
         return;
     }
+    if (topicsArray.length === 0) {
+        console.log("script.js: No topics to display.");
+        updateStatus("No topics found in the source file."); // ステータス更新追加
+        return; // トピックがなければ何もしない
+    }
 
-    topicsArray.forEach((topicText, index) => {
-        // console.log(`script.js: Creating element for topic ${index + 1}: ${topicText}`);
+    // --- 画面サイズに基づいて表示数を計算 ---
+    const containerWidth = topicsContainer.offsetWidth;
+    const containerHeight = topicsContainer.offsetHeight;
+    const screenArea = containerWidth * containerHeight;
+
+    // 面積から表示数を計算（最低数と最大数で制限）
+    let calculatedMaxTopics = Math.floor(screenArea / AREA_PER_TOPIC);
+    calculatedMaxTopics = Math.max(MIN_TOPICS, calculatedMaxTopics); // 最低数を保証
+    calculatedMaxTopics = Math.min(MAX_TOPICS_LIMIT, calculatedMaxTopics); // 最大数で制限
+    calculatedMaxTopics = Math.min(calculatedMaxTopics, topicsArray.length); // 利用可能なトピック数を超えないように
+
+    console.log(`script.js: Screen area ${screenArea}px^2. Calculated max topics: ${calculatedMaxTopics}`);
+
+    // --- 表示するトピックを選択 ---
+    // 元の配列をシャッフルしてからスライスすると、毎回違うトピックが表示されやすくなる（任意）
+    // const shuffledTopics = [...topicsArray].sort(() => 0.5 - Math.random());
+    // const topicsToDisplay = shuffledTopics.slice(0, calculatedMaxTopics);
+    // または、単純に先頭から取得
+    const topicsToDisplay = topicsArray.slice(0, calculatedMaxTopics);
+
+    console.log(`script.js: Displaying ${topicsToDisplay.length} topics.`);
+    updateStatus(`Displaying ${topicsToDisplay.length} topics.`); // ステータス更新修正
+
+    // --- トピック要素を生成して表示 ---
+    topicsToDisplay.forEach((topicText, index) => {
         const topicElement = document.createElement('div');
         topicElement.classList.add('topic-item');
         topicElement.textContent = topicText;
 
-        // ランダムな位置とアニメーション時間を設定
         const { top, left } = getRandomPosition(topicsContainer);
-        const duration = getRandomDuration(10, 25); // アニメーション時間 (秒)
-        const delay = getRandomDelay(5);          // アニメーション開始遅延 (秒)
+        const duration = getRandomDuration(10, 25);
+        const delay = getRandomDelay(5);
 
         topicElement.style.top = `${top}%`;
         topicElement.style.left = `${left}%`;
         topicElement.style.animationDuration = `${duration}s`;
         topicElement.style.animationDelay = `${delay}s`;
-        topicElement.style.opacity = '0'; // 初期状態は透明にしておく（アニメーションで表示）
-        topicElement.style.animationName = 'float, fadeIn'; // 浮遊とフェードインアニメーションを適用 (CSSに fadeIn を追加する必要あり)
+        topicElement.style.opacity = '0';
+        topicElement.style.animationName = 'float, fadeIn';
         topicElement.style.animationTimingFunction = 'ease-in-out, ease-out';
-        topicElement.style.animationIterationCount = 'infinite, 1'; // floatは無限、fadeInは1回
+        topicElement.style.animationIterationCount = 'infinite, 1';
         topicElement.style.animationDirection = 'alternate, normal';
-        topicElement.style.animationFillMode = 'none, forwards'; // fadeInは終了状態を維持
+        topicElement.style.animationFillMode = 'none, forwards';
 
         topicsContainer.appendChild(topicElement);
     });
-     console.log(`script.js: Finished creating ${topicsArray.length} topic elements.`);
-     updateStatus(`Displaying ${topicsArray.length} topics.`);
+     // console.log(`script.js: Finished creating ${topicsToDisplay.length} topic elements.`); // ログは上で表示済み
 }
-
 
 // --- Helper Functions ---
 
@@ -475,7 +506,30 @@ function startGisLoad() {
         setTimeout(startGisLoad, 100);
     }
 }
+// --- Resize Event Listener ---
+/**
+ * ウィンドウリサイズ時にトピック表示を更新する関数
+ */
+function handleResize() {
+    // 頻繁な再描画を防ぐためにタイマーを使用 (debounce)
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        console.log("script.js: Window resized, redisplaying topics.");
+        // currentTopics に保存されている最新のトピックリストを使って再描画
+        if (currentTopics && currentTopics.length > 0) {
+            displayTopics(currentTopics);
+        } else {
+            // トピックがまだ読み込まれていない場合は何もしないか、
+            // 必要ならステータス更新などを行う
+            console.log("script.js: Window resized, but no topics loaded yet.");
+        }
+    }, 250); // 250ミリ秒待ってから実行
+}
 
+// リサイズイベントリスナーを登録
+window.addEventListener('resize', handleResize);
+
+console.log("script.js: Resize listener added.");
 // GAPIとGISのロードと初期化を開始するためのチェックを開始
 startGapiLoad();
 startGisLoad();
